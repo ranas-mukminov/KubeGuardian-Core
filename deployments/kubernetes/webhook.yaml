@@ -1,0 +1,92 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kubeguardian-webhook
+webhooks:
+  - name: validate.kubeguardian.io
+    admissionReviewVersions: ["v1", "v1beta1"]
+    clientConfig:
+      service:
+        name: kubeguardian-webhook
+        namespace: kubeguardian-system
+        path: /validate
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCi4uLgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0t
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    namespaceSelector:
+      matchExpressions:
+        - key: kubeguardian.io/monitor
+          operator: NotIn
+          values: ["false"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+        scope: "Namespaced"
+    sideEffects: None
+    timeoutSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeguardian-webhook
+  namespace: kubeguardian-system
+spec:
+  selector:
+    app: kubeguardian
+    component: webhook
+  ports:
+    - name: https
+      port: 443
+      targetPort: 8443
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeguardian-webhook
+  namespace: kubeguardian-system
+  labels:
+    app: kubeguardian
+    component: webhook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kubeguardian
+      component: webhook
+  template:
+    metadata:
+      labels:
+        app: kubeguardian
+        component: webhook
+    spec:
+      serviceAccountName: kubeguardian-controller
+      containers:
+        - name: webhook
+          image: kubeguardian/webhook:v0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --mode=webhook
+            - --tls-cert-file=/etc/webhook/certs/tls.crt
+            - --tls-key-file=/etc/webhook/certs/tls.key
+            - --port=8443
+          ports:
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: kubeguardian-webhook-certs

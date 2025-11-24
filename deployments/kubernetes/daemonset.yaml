@@ -1,0 +1,91 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kubeguardian-agent
+  namespace: kubeguardian-system
+  labels:
+    app: kubeguardian
+    component: agent
+spec:
+  selector:
+    matchLabels:
+      app: kubeguardian
+      component: agent
+  template:
+    metadata:
+      labels:
+        app: kubeguardian
+        component: agent
+    spec:
+      serviceAccountName: kubeguardian-agent
+      hostPID: true
+      hostNetwork: true
+      containers:
+      - name: agent
+        image: kubeguardian/agent:v0.1.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --mode=agent
+        - --policy-endpoint=http://kubeguardian-controller:8080
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - SYS_RESOURCE
+            - NET_ADMIN
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+        - name: debugfs
+          mountPath: /sys/kernel/debug
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: sys
+        hostPath:
+          path: /sys
+      - name: debugfs
+        hostPath:
+          path: /sys/kernel/debug
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeguardian-controller
+  namespace: kubeguardian-system
+  labels:
+    app: kubeguardian
+    component: controller
+spec:
+  selector:
+    app: kubeguardian
+    component: controller
+  ports:
+  - name: api
+    port: 8080
+    targetPort: 8080
+  - name: metrics
+    port: 9090
+    targetPort: 9090

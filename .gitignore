@@ -1,0 +1,55 @@
+# Binaries
+kubeguardian
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+*.out
+coverage.txt
+*.prof
+
+# Vendor directories
+vendor/
+.vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+bin/
+dist/
+build/
+_output/
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Kubernetes secrets (if accidentally created locally)
+secrets/
+*.secret.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
